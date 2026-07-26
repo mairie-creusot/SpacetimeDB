@@ -140,8 +140,10 @@ impl Seek for CompressReader {
     }
 }
 
+const ZSTD_COMPRESSION_LEVEL: i32 = 12;
+
 pub fn new_zstd_writer<'a, W: io::Write>(inner: W, max_frame_size: Option<u32>) -> io::Result<ZstdWriter<'a, W>> {
-    let writer = ZstdWriter::builder(inner).with_compression_level(0);
+    let writer = ZstdWriter::builder(inner).with_compression_level(ZSTD_COMPRESSION_LEVEL);
     if let Some(max_frame_size) = max_frame_size {
         writer.with_seek_table(max_frame_size)
     } else {
