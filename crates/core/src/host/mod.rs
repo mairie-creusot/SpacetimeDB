@@ -20,7 +20,18 @@ pub mod wasmtime;
 
 // Visible for integration testing.
 pub mod instance_env;
-pub mod v8; // only pub for testing
+// only pub for testing
+//
+// The real V8-backed implementation is only compiled in when the `js-host`
+// feature is enabled (the upstream default). PawChat's trimmed build disables
+// it and gets a small stub with the same public surface instead, so this
+// module's *type* is always available, but the `v8` crate (V8 C++ engine) is
+// only ever linked in when `js-host` is on. See `v8_stub.rs` for details.
+#[cfg(feature = "js-host")]
+pub mod v8;
+#[cfg(not(feature = "js-host"))]
+#[path = "v8_stub.rs"]
+pub mod v8;
 mod wasm_common;
 
 pub use disk_storage::DiskStorage;

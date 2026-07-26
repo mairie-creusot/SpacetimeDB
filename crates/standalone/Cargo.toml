@@ -27,7 +27,13 @@ core-pinning = ["spacetimedb-core/core-pinning"]
 [dependencies]
 spacetimedb-client-api-messages.workspace = true
 spacetimedb-client-api.workspace = true
-spacetimedb-core.workspace = true
+# PawChat-trimmed: build spacetimedb-core without the V8/JS module host
+# (`js-host`) or the Tracy C++ profiler client (`tracy-profiling`). Neither is
+# used by PawChat (Rust/WASM module only, profiling flag never passed), and
+# dropping both removes the only two non-trivial C/C++ dependencies that
+# aren't load-bearing for storage/crash-safety. See crates/core/Cargo.toml for
+# the feature definitions and crates/core/src/host/v8_stub.rs for the fallback.
+spacetimedb-core = { workspace = true, default-features = false, features = ["unindexed_iter_by_col_range_warn"] }
 spacetimedb-datastore.workspace = true
 spacetimedb-lib.workspace = true
 spacetimedb-paths.workspace = true

@@ -8,7 +8,12 @@ rust-version.workspace = true
 
 [dependencies]
 spacetimedb-client-api-messages.workspace = true
-spacetimedb-core.workspace = true
+# PawChat-trimmed: see crates/standalone/Cargo.toml for why default features
+# (js-host, tracy-profiling) are disabled here. Cargo unifies feature
+# selection for a given crate version across the whole build graph, so this
+# override has to be mirrored on every workspace member that depends on
+# spacetimedb-core, not just spacetimedb-standalone itself.
+spacetimedb-core = { workspace = true, default-features = false, features = ["unindexed_iter_by_col_range_warn"] }
 spacetimedb-data-structures.workspace = true
 spacetimedb-datastore.workspace = true
 spacetimedb-lib = { workspace = true, features = ["serde"] }

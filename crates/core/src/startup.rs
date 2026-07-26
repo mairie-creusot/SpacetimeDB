@@ -76,9 +76,20 @@ pub fn configure_tracing(opts: TracingOptions) {
 
     let env_filter_layer = conf_to_filter(opts.config);
 
+    #[cfg(feature = "tracy-profiling")]
     let tracy_layer = if opts.tracy {
         Some(tracing_tracy::TracyLayer::new())
     } else {
+        None
+    };
+    #[cfg(not(feature = "tracy-profiling"))]
+    let tracy_layer: Option<tracing_subscriber::layer::Identity> = {
+        if opts.tracy {
+            log::warn!(
+                "tracy profiling was requested (--enable-tracy / SPACETIMEDB_TRACY) but this build was \
+                 compiled without the `tracy-profiling` feature; ignoring"
+            );
+        }
         None
     };
 

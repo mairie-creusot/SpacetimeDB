@@ -1,0 +1,56 @@
+# PawChat-trimmed SpacetimeDB standalone build.
+#
+# Derived from crates/standalone/Dockerfile (the upstream "env-release" recipe
+# already adopted by PawChat: builds only spacetimedb-standalone, not the CLI,
+# and skips the .NET/wasi-experimental toolchain the root Dockerfile installs
+# for C# module support).
+#
+# On top of that, this file additionally:
+#   - cross-compiles to x86_64-unknown-linux-musl so the runtime stage can be
+#     Alpine instead of Debian (smaller base, no glibc).
+#   - keeps the build stage on glibc/Debian (rust:1.93.0) since that's the
+#     well-supported toolchain image; only the *output* target is musl.
+#   - builds spacetimedb-core/client-api/standalone with the V8 JS/TS module
+#     host (`js-host`) and the Tracy C++ profiler client (`tracy-profiling`)
+#     disabled. This is not selected via a Docker build arg: it's the default
+#     for this whole branch (see crates/{core,client-api,standalone}/Cargo.toml
+#     and root Cargo.toml's `spacetimedb-core` workspace dependency), so a
+#     plain `cargo build -p spacetimedb-standalone` on this branch already
+#     builds trimmed.
+
+ARG CARGO_PROFILE=release
+
+FROM rust:1.93.0 AS chef
+RUN rust_target=$(rustc -vV | awk '/^host:/{ print $2 }') && \
+  curl https://github.com/cargo-bins/cargo-binstall/releases/latest/download/cargo-binstall-$rust_target.tgz -fL | tar xz -C $CARGO_HOME/bin
+RUN cargo binstall -y cargo-chef@0.1.70
+RUN rustup target add x86_64-unknown-linux-musl
+RUN apt-get update && apt-get install -y musl-tools musl-dev && rm -rf /var/lib/apt/lists/*
+ENV CC_x86_64_unknown_linux_musl=musl-gcc \
+    CARGO_TARGET_X86_64_UNKNOWN_LINUX_MUSL_LINKER=musl-gcc
+WORKDIR /usr/src/app
+
+FROM chef AS planner
+COPY . .
+RUN cargo chef prepare --recipe-path recipe.json
+
+FROM chef AS builder
+COPY --from=planner /usr/src/app/recipe.json .
+ENV CARGO_INCREMENTAL=0
+ARG CARGO_PROFILE=release
+RUN cargo chef cook -p spacetimedb-standalone --profile=${CARGO_PROFILE} --target x86_64-unknown-linux-musl
+COPY . .
+RUN cargo build -p spacetimedb-standalone --profile=${CARGO_PROFILE} --locked --target x86_64-unknown-linux-musl
+
+FROM alpine:3.20 AS env-release
+RUN apk add --no-cache ca-certificates libgcc
+COPY --from=builder /usr/src/app/target/x86_64-unknown-linux-musl/release/spacetimedb-standalone /usr/local/bin/
+COPY --from=builder /usr/src/app/crates/standalone/config.toml /stdb/data/config.toml
+
+FROM env-release
+
+EXPOSE 3000
+
+ENV RUST_BACKTRACE=1
+ENTRYPOINT ["spacetimedb-standalone"]
+CMD ["start", "--data-dir=/stdb/data", "--jwt-pub-key-path=/etc/spacetimedb/id_ecdsa.pub", "--jwt-priv-key-path=/etc/spacetimedb/id_ecdsa"]

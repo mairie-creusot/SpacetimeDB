@@ -52,7 +52,7 @@ bytestring.workspace = true
 chrono.workspace = true
 crossbeam-channel.workspace = true
 crossbeam-queue.workspace = true
-deno_core_icudata.workspace = true
+deno_core_icudata = { workspace = true, optional = true }
 derive_more.workspace = true
 dirs.workspace = true
 enum-as-inner.workspace = true
@@ -115,12 +115,12 @@ tracing-core.workspace = true
 tracing-flame.workspace = true
 tracing-log.workspace = true
 tracing-subscriber.workspace = true
-tracing-tracy.workspace = true
+tracing-tracy = { workspace = true, optional = true }
 tracing.workspace = true
 url.workspace = true
 urlencoding.workspace = true
 uuid.workspace = true
-v8.workspace = true
+v8 = { workspace = true, optional = true }
 wasmtime.workspace = true
 wasmtime-internal-fiber.workspace = true
 jwks.workspace = true
@@ -138,7 +138,21 @@ nix = { workspace = true, features = ["sched"] }
 [features]
 # Print a warning when doing an unindexed `iter_by_col_range` on a large table.
 unindexed_iter_by_col_range_warn = []
-default = ["unindexed_iter_by_col_range_warn"]
+# Enables the V8-based host for modules written in JS/TypeScript.
+# This pulls in the `v8` crate (a Rust binding to the V8 C++ engine, statically
+# linked) and its ICU data. PawChat's trimmed build disables this: PawChat only
+# ever publishes a Rust-compiled WASM module, never a JS/TS module, so the V8
+# host is dead weight (binary size + compile time) with zero runtime benefit.
+# See crates/core/src/host/v8_stub.rs for the fallback used when this is off.
+js-host = ["dep:v8", "dep:deno_core_icudata"]
+# Enables the `--enable-tracy` / `SPACETIMEDB_TRACY` runtime profiling hook.
+# Pulls in `tracing-tracy` -> `tracy-client-sys`, a vendored C++ profiler
+# client. Off by default at runtime (opt-in flag) even when compiled in, so
+# PawChat's trimmed build (which never passes that flag) disables it outright.
+# This is also what was blocking a musl/Alpine build: tracy-client-sys needs a
+# C++ cross-compiler (`musl-g++`), which the musl-tools package doesn't ship.
+tracy-profiling = ["dep:tracing-tracy"]
+default = ["unindexed_iter_by_col_range_warn", "js-host", "tracy-profiling"]
 # Test-only escape hatch used by SDK procedure tests that intentionally call `localhost`.
 # Keep this off in production builds.
 allow_loopback_http_for_tests = []

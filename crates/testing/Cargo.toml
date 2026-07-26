@@ -12,7 +12,7 @@ allow_loopback_http_for_tests = ["spacetimedb-standalone/allow_loopback_http_for
 spacetimedb-cli.workspace = true
 spacetimedb-data-structures.workspace = true
 spacetimedb-lib.workspace = true
-spacetimedb-core.workspace = true
+spacetimedb-core = { workspace = true, features = ["unindexed_iter_by_col_range_warn"] }
 spacetimedb-standalone.workspace = true
 spacetimedb-client-api.workspace = true
 spacetimedb-client-api-messages.workspace = true
