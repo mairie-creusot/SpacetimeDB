@@ -457,6 +457,13 @@ fn prompt_yes_no(question: &str) -> bool {
 }
 
 fn banner() {
+    const INNER_WIDTH: usize = 159;
+    let version = format!("v{}", env!("CARGO_PKG_VERSION"));
+    let pad = INNER_WIDTH.saturating_sub(version.chars().count());
+    let left = pad / 2;
+    let right = pad - left;
+    let version_line = format!("{}{}{}", " ".repeat(left), version, " ".repeat(right));
+
     println!(
         r#"
 ┌───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
@@ -535,6 +542,7 @@ fn banner() {
 │                                                                                                                                                               │
 │                                                                © 2026 Pandalunca / SpaceTimeDB                                                                │
 │                                                       Infinite Reality. Always Connected, Vr anywhere.                                                        │
+│{version_line}│
 │                                                                                                                                                               │
 └───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
     "#
