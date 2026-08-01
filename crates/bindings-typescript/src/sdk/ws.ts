@@ -7,13 +7,15 @@ async function resolveWS(): Promise<typeof WebSocket> {
   }
 
   // Node without a global WebSocket: lazily load undici's polyfill.
-  // Use an unstatable dynamic import so bundlers don't prebundle it.
-  const dynamicImport = new Function('m', 'return import(m)') as (
-    m: string
-  ) => Promise<any>;
+  // A variable specifier plus bundler ignore-comments keeps build tools from
+  // statically resolving `undici` (which is an optional peer dep), without
+  // needing `new Function`, which strict CSPs block.
+  const undiciSpecifier = 'undici';
 
   try {
-    const { WebSocket: UndiciWS } = await dynamicImport('undici');
+    const { WebSocket: UndiciWS } = (await import(
+      /* webpackIgnore: true */ /* @vite-ignore */ undiciSpecifier
+    )) as typeof import('undici');
     return UndiciWS as unknown as typeof WebSocket;
   } catch (err) {
     stdbLogger(
