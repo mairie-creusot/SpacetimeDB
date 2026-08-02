@@ -1,0 +1,80 @@
+name: Docker (PawChat standalone)
+
+# Publie ghcr.io/mairie-creusot/pawchat-spacetimedb, l'image consommee par
+# pawchat en dev (docker-compose.dev.yml) et en prod (docker-compose.prod.yml).
+# Avant ce workflow, cette image etait batie a la main sur un autre poste puis
+# poussee manuellement (voir le commentaire dans pawchat/.github/workflows/ci.yml
+# au job `spacetimedb`) — aucune trace de comment `trimmed-musl-v4` a ete produite.
+
+on:
+  push:
+    branches: [pawchat-trimmed]
+    paths:
+      - "crates/standalone/**"
+      - "crates/core/**"
+      - "crates/client-api/**"
+      - "crates/bindings-typescript/**"
+      - "Cargo.lock"
+      - "Cargo.toml"
+      - ".github/workflows/docker-pawchat.yml"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag supplementaire a publier en plus de latest/sha-* (ex: trimmed-musl-v5)"
+        required: false
+        type: string
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+
+      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # trimmed-musl-v4 reste le tag EPINGLE par les docker-compose de pawchat :
+      # on ne le republie que sur demande explicite (input `tag`), jamais
+      # automatiquement a chaque push, pour ne pas faire evoluer l'image que
+      # la prod pointe deja sans revue humaine deliberee.
+      - id: tags
+        run: |
+          tags="ghcr.io/mairie-creusot/pawchat-spacetimedb:latest
+          ghcr.io/mairie-creusot/pawchat-spacetimedb:sha-${GITHUB_SHA::12}"
+          if [ -n "${{ inputs.tag }}" ]; then
+            tags="$tags
+          ghcr.io/mairie-creusot/pawchat-spacetimedb:${{ inputs.tag }}"
+          fi
+          {
+            echo "list<<EOF"
+            echo "$tags"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        with:
+          context: .
+          file: crates/standalone/Dockerfile.pawchat
+          push: true
+          tags: ${{ steps.tags.outputs.list }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # GHCR cree les nouveaux packages en PRIVE par defaut, meme sur un depot
+      # public — GITHUB_TOKEN n'a pas la portee necessaire pour changer cette
+      # visibilite via l'API. A faire UNE SEULE FOIS a la main apres le tout
+      # premier push reussi : Settings du package sur GitHub -> Change visibility
+      # -> Public. Les pushes suivants conservent la visibilite choisie.
+      - name: Rappel visibilite du package
+        run: |
+          echo "::notice::Si c'est la premiere publication, passe le package pawchat-spacetimedb en Public depuis ses parametres GitHub (GITHUB_TOKEN ne peut pas le faire automatiquement)."
