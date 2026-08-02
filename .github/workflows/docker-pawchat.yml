@@ -31,7 +31,10 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    # Un build a froid prend ~36 min sur 16 coeurs depuis que le Dockerfile
+    # compile en fat LTO / codegen-units=1 ; sur les 4 vCPU d'ubuntu-latest il
+    # faut compter beaucoup plus, et l'etape de link LTO est quasi mono-thread.
+    timeout-minutes: 180
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 

@@ -17,8 +17,19 @@
 #     and root Cargo.toml's `spacetimedb-core` workspace dependency), so a
 #     plain `cargo build -p spacetimedb-standalone` on this branch already
 #     builds trimmed.
+#   - shrinks the produced binary via CARGO_PROFILE_RELEASE_* environment
+#     overrides rather than by editing the workspace `[profile.release]`, so the
+#     size/build-time tradeoff applies to this image only and no other build or
+#     CI job of the monorepo inherits it.
 
 ARG CARGO_PROFILE=release
+
+# `symbols` drops .symtab/.strtab. The cost is that panic backtraces and
+# jemalloc pprof flamegraphs from this image show addresses instead of function
+# names; rebuild with `--build-arg CARGO_STRIP=none` when that matters.
+ARG CARGO_STRIP=symbols
+ARG CARGO_LTO=fat
+ARG CARGO_CODEGEN_UNITS=1
 
 FROM rust:1.93.0 AS chef
 RUN rust_target=$(rustc -vV | awk '/^host:/{ print $2 }') && \
@@ -38,12 +49,22 @@ FROM chef AS builder
 COPY --from=planner /usr/src/app/recipe.json .
 ENV CARGO_INCREMENTAL=0
 ARG CARGO_PROFILE=release
+ARG CARGO_STRIP
+ARG CARGO_LTO
+ARG CARGO_CODEGEN_UNITS
+ENV CARGO_PROFILE_RELEASE_STRIP=${CARGO_STRIP} \
+    CARGO_PROFILE_RELEASE_LTO=${CARGO_LTO} \
+    CARGO_PROFILE_RELEASE_CODEGEN_UNITS=${CARGO_CODEGEN_UNITS}
 RUN cargo chef cook -p spacetimedb-standalone --profile=${CARGO_PROFILE} --target x86_64-unknown-linux-musl
 COPY . .
 RUN cargo build -p spacetimedb-standalone --profile=${CARGO_PROFILE} --locked --target x86_64-unknown-linux-musl
 
+# No `apk add` here on purpose: the binary is static-pie musl with an empty
+# DT_NEEDED, so `libgcc` is dead weight, and the trust store the auth code
+# probes (/etc/ssl/certs/ca-certificates.crt) already ships in alpine's base
+# layer via `ca-certificates-bundle` — the `ca-certificates` package only adds
+# the update-ca-certificates tooling, which nothing here runs.
 FROM alpine:3.20 AS env-release
-RUN apk add --no-cache ca-certificates libgcc
 COPY --from=builder /usr/src/app/target/x86_64-unknown-linux-musl/release/spacetimedb-standalone /usr/local/bin/
 COPY --from=builder /usr/src/app/crates/standalone/config.toml /stdb/data/config.toml
 

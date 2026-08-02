@@ -1,0 +1,17 @@
+# BuildKit uses this file instead of the root .dockerignore for
+# Dockerfile.pawchat, so it must repeat everything the root file excludes.
+#
+# The root .dockerignore leaves a local `target/` and `node_modules/` in the
+# build context (they don't exist on a fresh CI checkout, so it only ever hurt
+# local builds — over 1 GB of context transfer before compilation even starts).
+#
+# `.git` is deliberately NOT excluded: crates/lib/build.rs shells out to git to
+# stamp GIT_HASH into the binary.
+
+**/target
+target
+**/node_modules
+node_modules
+
+# we do our own version pinning in the Dockerfile
+rust-toolchain.toml
