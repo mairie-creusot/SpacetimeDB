@@ -1,3 +1,8 @@
+> **Fork PawChat** — ce dépôt est un fork qui backe la production de PawChat, avec un build
+> "trimmed" (host JS/TS et profiler désactivés), une image Docker Alpine/musl, et un SDK
+> TypeScript patché pour fonctionner sous CSP stricte. Voir [PAWCHAT.md](./PAWCHAT.md) pour le
+> détail de ce qui diverge d'upstream et pourquoi.
+
 <p align="center">
     <a href="https://spacetimedb.com#gh-dark-mode-only" target="_blank">
 	<img width="320" src="./images/dark/logo.svg" alt="SpacetimeDB Logo">

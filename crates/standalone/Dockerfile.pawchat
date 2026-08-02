@@ -1,5 +1,9 @@
 # PawChat-trimmed SpacetimeDB standalone build.
 #
+# Built and published automatically by ../../.github/workflows/docker-pawchat.yml
+# to ghcr.io/mairie-creusot/pawchat-spacetimedb — see ../../PAWCHAT.md for the
+# full list of what diverges from upstream on this branch, and why.
+#
 # Derived from crates/standalone/Dockerfile (the upstream "env-release" recipe
 # already adopted by PawChat: builds only spacetimedb-standalone, not the CLI,
 # and skips the .NET/wasi-experimental toolchain the root Dockerfile installs
